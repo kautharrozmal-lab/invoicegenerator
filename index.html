@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patriots Publishing — Sales Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e10;
+    --surface: #18181c;
+    --surface2: #1f1f25;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0ede8;
+    --muted: #7a7880;
+    --shopee: #e8643a;
+    --tiktok: #7b6ef6;
+    --combined: #34c98a;
+    --gold: #c9a84c;
+    --red: #e05252;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  html { font-size: 14px; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  /* LAYOUT */
+  .shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+    display: flex; flex-direction: column; gap: 32px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .logo { font-family: var(--serif); font-size: 17px; font-weight: 600; color: var(--text); line-height: 1.3; letter-spacing: -0.02em; }
+  .logo span { display: block; font-size: 10px; font-family: var(--mono); color: var(--muted); font-weight: 400; letter-spacing: 0.1em; margin-top: 4px; text-transform: uppercase; }
+  .nav-label { font-size: 9px; font-family: var(--mono); letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; color: var(--muted); transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-divider { height: 1px; background: var(--border); }
+
+  /* DATE FILTER */
+  .filter-section { display: flex; flex-direction: column; gap: 10px; }
+  .filter-label { font-size: 9px; font-family: var(--mono); letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+  .date-btn-group { display: flex; flex-direction: column; gap: 4px; }
+  .date-btn {
+    padding: 7px 10px; border-radius: 5px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-family: var(--mono);
+    font-size: 11px; cursor: pointer; text-align: left; transition: all 0.15s;
+  }
+  .date-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+  .date-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.08); }
+  .custom-range { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .custom-range label { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+  .custom-range input[type="date"] {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 8px; border-radius: 5px;
+    font-family: var(--mono); font-size: 11px; width: 100%;
+    cursor: pointer;
+  }
+  .custom-range input[type="date"]:focus { outline: none; border-color: var(--gold); }
+  .apply-btn {
+    padding: 7px 10px; border-radius: 5px; border: 1px solid var(--gold);
+    background: rgba(201,168,76,0.1); color: var(--gold); font-family: var(--mono);
+    font-size: 11px; cursor: pointer; transition: all 0.15s; width: 100%;
+    margin-top: 2px;
+  }
+  .apply-btn:hover { background: rgba(201,168,76,0.2); }
+
+  /* PLATFORM TOGGLES */
+  .platform-toggles { display: flex; flex-direction: column; gap: 6px; }
+  .toggle-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; border-radius: 5px; border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .toggle-item.active-shopee { border-color: var(--shopee); background: rgba(232,100,58,0.08); }
+  .toggle-item.active-tiktok { border-color: var(--tiktok); background: rgba(123,110,246,0.08); }
+  .toggle-name { font-size: 12px; font-weight: 500; }
+  .toggle-switch { width: 28px; height: 16px; border-radius: 8px; position: relative; transition: background 0.2s; }
+  .toggle-switch::after { content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: white; top: 3px; transition: left 0.2s; }
+  .toggle-on .toggle-switch::after { left: 15px; }
+  .toggle-off .toggle-switch { background: var(--surface2); }
+  .toggle-off .toggle-switch::after { left: 3px; }
+
+  /* MAIN */
+  .main { padding: 32px 36px; overflow-x: hidden; }
+  .page-header { margin-bottom: 28px; }
+  .page-title { font-family: var(--serif); font-size: 28px; font-weight: 300; color: var(--text); letter-spacing: -0.03em; }
+  .page-title em { font-style: italic; color: var(--gold); }
+  .page-sub { font-size: 12px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+  .date-range-display { display: inline-block; margin-top: 8px; font-size: 11px; font-family: var(--mono); color: var(--gold); background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); padding: 3px 10px; border-radius: 20px; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .kpi-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .kpi-card:hover { border-color: var(--border2); }
+  .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .kpi-card.shopee::before { background: var(--shopee); }
+  .kpi-card.tiktok::before { background: var(--tiktok); }
+  .kpi-card.combined::before { background: var(--combined); }
+  .kpi-card.neutral::before { background: var(--gold); }
+  .kpi-label { font-size: 10px; font-family: var(--mono); color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .kpi-value { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+  .kpi-change { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-family: var(--mono); margin-top: 4px; }
+  .kpi-change.up { color: var(--combined); }
+  .kpi-change.dn { color: var(--red); }
+
+  /* SECTION HEADER */
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; margin-top: 28px; }
+  .section-title { font-family: var(--serif); font-size: 16px; font-weight: 300; color: var(--text); letter-spacing: -0.02em; }
+  .section-tag { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+
+  /* CHART CARDS */
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 22px;
+  }
+  .chart-title { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .chart-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 16px; }
+  .legend-row { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* WEEK TABLE */
+  .week-table-wrap { overflow-x: auto; }
+  .week-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .week-table th {
+    text-align: left; font-family: var(--mono); font-size: 10px; font-weight: 500;
+    color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .week-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  .week-table tr:last-child td { border-bottom: none; }
+  .week-table tr:hover td { background: var(--surface2); }
+  .week-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .rm-val { font-family: var(--mono); font-weight: 500; }
+  .shopee-val { color: var(--shopee); }
+  .tiktok-val { color: var(--tiktok); }
+  .combined-val { color: var(--combined); font-weight: 500; }
+  .unit-badge { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--surface2); color: var(--muted); }
+  .mini-bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .mini-bar-bg { width: 60px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+  .mini-bar-fill { height: 100%; border-radius: 2px; }
+  .total-row td { background: rgba(255,255,255,0.03); font-weight: 500; }
+
+  /* METRIC TABS */
+  .metric-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .metric-tab {
+    padding: 5px 14px; border-radius: 20px; font-size: 11px; font-family: var(--mono);
+    cursor: pointer; border: 1px solid var(--border); color: var(--muted);
+    background: transparent; transition: all 0.15s;
+  }
+  .metric-tab:hover { border-color: var(--border2); color: var(--text); }
+  .metric-tab.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.08); }
+
+  /* PLATFORM BADGE */
+  .plt-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 10px; }
+  .plt-badge.s { background: rgba(232,100,58,0.12); color: var(--shopee); }
+  .plt-badge.t { background: rgba(123,110,246,0.12); color: var(--tiktok); }
+
+  /* DEAD ZONE ANNOTATION */
+  .dead-zone-note { font-size: 11px; font-family: var(--mono); color: var(--red); background: rgba(224,82,82,0.08); border: 1px solid rgba(224,82,82,0.2); padding: 6px 12px; border-radius: 6px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+  /* FOOTER */
+  .dashboard-footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .footer-text { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* PRODUCT TABS */
+  .prod-tab, .month-tab {
+    padding: 5px 14px; border-radius: 6px; font-size: 12px; font-family: var(--mono);
+    cursor: pointer; border: none; color: var(--muted); background: transparent;
+    transition: all 0.15s;
+  }
+  .prod-tab:hover, .month-tab:hover { color: var(--text); background: var(--surface2); }
+  .prod-tab.active[data-platform="shopee"] { color: var(--shopee); background: rgba(232,100,58,0.1); }
+  .prod-tab.active[data-platform="tiktok"] { color: var(--tiktok); background: rgba(123,110,246,0.1); }
+  .month-tab.active { color: var(--gold); background: rgba(201,168,76,0.1); }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .chart-grid-2 { grid-template-columns: 1fr; }
+    .chart-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div>
+    <div class="logo">Patriots Publishing<span>Sales Dashboard</span></div>
+  </div>
+
+  <div>
+    <div class="nav-label">Views</div>
+    <div class="nav-item active" onclick="setView('overview')">
+      <div class="nav-dot" style="background:var(--gold)"></div> Overview
+    </div>
+    <div class="nav-item" onclick="setView('monthly')">
+      <div class="nav-dot" style="background:var(--shopee)"></div> Monthly Breakdown
+    </div>
+    <div class="nav-item" onclick="setView('quarterly')">
+      <div class="nav-dot" style="background:var(--gold)"></div> Quarterly Summary
+    </div>
+    <div class="nav-item" onclick="setView('weekly')">
+      <div class="nav-dot" style="background:var(--combined)"></div> Weekly Breakdown
+    </div>
+    <div class="nav-item" onclick="setView('daily')">
+      <div class="nav-dot" style="background:var(--tiktok)"></div> Daily Trend
+    </div>
+    <div class="nav-item" onclick="setView('products')">
+      <div class="nav-dot" style="background:var(--red)"></div> Top 10 Produk
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="filter-section">
+    <div class="filter-label">Tempoh Masa</div>
+    <div class="date-btn-group">
+      <button class="date-btn" onclick="setRange('feb')">Februari 2026</button>
+      <button class="date-btn" onclick="setRange('mar')">Mac 2026</button>
+      <button class="date-btn active" onclick="setRange('both')">Feb + Mac (Semua)</button>
+    </div>
+    <div class="custom-range" id="customRange">
+      <label>Dari</label>
+      <input type="date" id="dateFrom" value="2026-02-01" min="2026-02-01" max="2026-03-31">
+      <label>Hingga</label>
+      <input type="date" id="dateTo" value="2026-03-31" min="2026-02-01" max="2026-03-31">
+      <button class="apply-btn" onclick="applyCustomRange()">Guna Tarikh Ini →</button>
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div>
+    <div class="filter-label">Platform</div>
+    <div class="platform-toggles">
+      <div class="toggle-item active-shopee toggle-on" id="shopeeToggle" onclick="togglePlatform('shopee')">
+        <span class="toggle-name" style="color:var(--shopee)">Shopee</span>
+        <div class="toggle-switch" style="background:var(--shopee)"></div>
+      </div>
+      <div class="toggle-item active-tiktok toggle-on" id="tiktokToggle" onclick="togglePlatform('tiktok')">
+        <span class="toggle-name" style="color:var(--tiktok)">TikTok Shop</span>
+        <div class="toggle-switch" style="background:var(--tiktok)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto;">
+    <div style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1.6;">
+      Data: Feb 01 – Mac 31, 2026<br>
+      Shopee: Confirmed Sales<br>
+      TikTok: Gross GMV
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="page-header">
+    <h1 class="page-title">Prestasi <em>Jualan</em></h1>
+    <p class="page-sub">Patriots Publishing · Shopee + TikTok Shop</p>
+    <div class="date-range-display" id="dateRangeDisplay">Feb 01 – Mac 31, 2026</div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card combined">
+      <div class="kpi-label">Total GMV</div>
+      <div class="kpi-value" id="kpiTotalGMV">RM191,454</div>
+      <div class="kpi-sub">Kedua-dua platform</div>
+    </div>
+    <div class="kpi-card shopee">
+      <div class="kpi-label">Shopee Sales</div>
+      <div class="kpi-value" id="kpiShopeeGMV">RM97,250</div>
+      <div class="kpi-change dn" id="kpiShopeeChg">▼ 9.2% (Mac vs Feb)</div>
+    </div>
+    <div class="kpi-card tiktok">
+      <div class="kpi-label">TikTok GMV</div>
+      <div class="kpi-value" id="kpiTiktokGMV">RM94,204</div>
+      <div class="kpi-change dn" id="kpiTiktokChg">▼ 14.6% (Mac vs Feb)</div>
+    </div>
+    <div class="kpi-card neutral">
+      <div class="kpi-label">Total Units Terjual</div>
+      <div class="kpi-value" id="kpiUnits">4,577</div>
+      <div class="kpi-sub" id="kpiUnitsSub">Shopee + TikTok</div>
+    </div>
+  </div>
+
+  <!-- OVERVIEW VIEW -->
+  <div id="viewOverview">
+    <div class="section-head">
+      <div class="section-title">Sales RM & Units — Bulanan</div>
+      <div class="section-tag">Shopee (confirmed) + TikTok GMV</div>
+    </div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">Sales (RM) mengikut platform</div>
+        <div class="chart-sub" id="rmChartSub">Menunjukkan semua data</div>
+        <div class="legend-row">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="monthlyRMChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Units terjual mengikut platform</div>
+        <div class="chart-sub" id="unitChartSub">Menunjukkan semua data</div>
+        <div class="legend-row">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="monthlyUnitsChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:24px;">
+      <div class="section-title">Metrik Operasi</div>
+      <div class="section-tag">Mengikut tempoh terpilih</div>
+    </div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">Shopee — Visitors & Conversion</div>
+        <div class="chart-sub">Visitor harian dan kadar tukar pembeli</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+            <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">AVG DAILY VISITORS</div>
+            <div style="font-size:20px;font-family:var(--serif);font-weight:600;" id="avgVisitors">—</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+            <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">AVG CONVERSION</div>
+            <div style="font-size:20px;font-family:var(--serif);font-weight:600;" id="avgConv">—</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+            <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">SHOPEE AOV</div>
+            <div style="font-size:20px;font-family:var(--serif);font-weight:600;" id="shopeeAOV">—</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+            <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">TIKTOK AOV</div>
+            <div style="font-size:20px;font-family:var(--serif);font-weight:600;" id="tiktokAOV">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Pecahan Sales RM</div>
+        <div class="chart-sub">Shopee vs TikTok — tempoh terpilih</div>
+        <div style="position:relative;height:200px;"><canvas id="pieChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEKLY VIEW -->
+  <div id="viewWeekly" style="display:none;">
+    <div class="section-head">
+      <div class="section-title">Breakdown Mingguan — RM & Unit</div>
+      <div class="section-tag" id="weeklyRangeTag">Feb + Mac 2026</div>
+    </div>
+
+    <div class="metric-tabs">
+      <button class="metric-tab active" onclick="setWeekMetric('rm')">Sales (RM)</button>
+      <button class="metric-tab" onclick="setWeekMetric('units')">Units</button>
+      <button class="metric-tab" onclick="setWeekMetric('orders')">Orders</button>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div class="chart-title">Sales mingguan</div>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--combined)"></div>Gabungan</div>
+      </div>
+      <div style="position:relative;height:230px;"><canvas id="weeklyBarChart"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Jadual Mingguan Terperinci</div>
+      <div class="dead-zone-note" id="deadZoneNote" style="display:none;">
+        ⚠ Minggu 12 (Mac): TikTok dead zone 19–24 Mac — 6 hari zero sales
+      </div>
+      <div class="week-table-wrap">
+        <table class="week-table" id="weeklyTable">
+          <thead>
+            <tr>
+              <th>Minggu</th>
+              <th>Tarikh</th>
+              <th>Shopee RM</th>
+              <th>Shopee Units</th>
+              <th>TikTok RM</th>
+              <th>TikTok Units</th>
+              <th>Gabungan RM</th>
+              <th>Gabungan Units</th>
+            </tr>
+          </thead>
+          <tbody id="weeklyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAILY VIEW -->
+  <div id="viewDaily" style="display:none;">
+    <div class="section-head">
+      <div class="section-title">Trend Harian</div>
+      <div class="section-tag" id="dailyRangeTag">Feb + Mac 2026</div>
+    </div>
+
+    <div id="deadZoneNoteDaily" style="display:none;" class="dead-zone-note">
+      ⚠ TikTok: 6 hari zero GMV (19–24 Mac 2026) — anomali yang perlu disiasat
+    </div>
+
+    <div class="chart-card" style="margin-bottom:14px;">
+      <div class="chart-title">Sales harian (RM)</div>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+      </div>
+      <div style="position:relative;height:250px;"><canvas id="dailyRMChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Units terjual harian</div>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+      </div>
+      <div style="position:relative;height:200px;"><canvas id="dailyUnitsChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- MONTHLY VIEW -->
+  <div id="viewMonthly" style="display:none;">
+    <div class="section-head">
+      <div class="section-title">Breakdown Bulanan</div>
+      <div class="section-tag">Feb vs Mac 2026 — perbandingan penuh</div>
+    </div>
+
+    <div class="chart-grid-2" style="margin-bottom:14px;">
+      <div class="chart-card">
+        <div class="chart-title">Sales (RM) — Feb vs Mac</div>
+        <div class="legend-row">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--combined)"></div>Gabungan</div>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="monthlyCompRMChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Units — Feb vs Mac</div>
+        <div class="legend-row">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="monthlyCompUnitsChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:14px;">
+      <div class="chart-title">Jadual Perbandingan Bulanan — Terperinci</div>
+      <div class="week-table-wrap" style="margin-top:14px;">
+        <table class="week-table">
+          <thead>
+            <tr>
+              <th>Metrik</th>
+              <th>Februari 2026</th>
+              <th>Mac 2026</th>
+              <th>Perubahan</th>
+              <th>Nota</th>
+            </tr>
+          </thead>
+          <tbody id="monthlyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">Trend harian — Sales RM (Feb)</div>
+        <div class="chart-sub">Corak jualan sepanjang Februari</div>
+        <div style="position:relative;height:170px;"><canvas id="monthlyFebTrendChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Trend harian — Sales RM (Mac)</div>
+        <div class="chart-sub">Corak jualan sepanjang Mac · ⚠ Dead zone 19–24 Mac</div>
+        <div style="position:relative;height:170px;"><canvas id="monthlyMarTrendChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUARTERLY VIEW -->
+  <div id="viewQuarterly" style="display:none;">
+    <div class="section-head">
+      <div class="section-title">Ringkasan <em>Suku Tahun</em></div>
+      <div class="section-tag">Q1 2026 — Jan hingga Mac (data Feb + Mac)</div>
+    </div>
+
+    <div class="kpi-grid" style="margin-bottom:20px;">
+      <div class="kpi-card combined">
+        <div class="kpi-label">Total GMV Q1</div>
+        <div class="kpi-value" id="qTotalGMV">—</div>
+        <div class="kpi-sub">Shopee + TikTok</div>
+      </div>
+      <div class="kpi-card shopee">
+        <div class="kpi-label">Shopee Q1</div>
+        <div class="kpi-value" id="qShopeeGMV">—</div>
+        <div class="kpi-sub">Feb + Mac confirmed</div>
+      </div>
+      <div class="kpi-card tiktok">
+        <div class="kpi-label">TikTok Q1</div>
+        <div class="kpi-value" id="qTiktokGMV">—</div>
+        <div class="kpi-sub">Feb + Mac GMV</div>
+      </div>
+      <div class="kpi-card neutral">
+        <div class="kpi-label">Total Units Q1</div>
+        <div class="kpi-value" id="qUnits">—</div>
+        <div class="kpi-sub" id="qUnitsSub">Shopee + TikTok</div>
+      </div>
+    </div>
+
+    <div class="chart-grid-2" style="margin-bottom:14px;">
+      <div class="chart-card">
+        <div class="chart-title">GMV bulanan — Q1 2026</div>
+        <div class="legend-row">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+        </div>
+        <div style="position:relative;height:210px;"><canvas id="qMonthlyChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Pecahan GMV — Q1 gabungan</div>
+        <div style="position:relative;height:210px;"><canvas id="qPieChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:14px;">
+      <div class="chart-title">Scorecard Q1 — Prestasi Keseluruhan</div>
+      <div class="week-table-wrap" style="margin-top:14px;">
+        <table class="week-table">
+          <thead>
+            <tr>
+              <th>Metrik</th>
+              <th>Shopee — Feb</th>
+              <th>Shopee — Mac</th>
+              <th>TikTok — Feb</th>
+              <th>TikTok — Mac</th>
+              <th>Q1 Total</th>
+            </tr>
+          </thead>
+          <tbody id="quarterlyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Analisis trend — Sales harian gabungan sepanjang Q1</div>
+      <div class="chart-sub">Shopee + TikTok · Feb 01 hingga Mac 31, 2026</div>
+      <div class="legend-row" style="margin-top:10px;">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--shopee)"></div>Shopee</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--tiktok)"></div>TikTok</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--combined)"></div>Gabungan</div>
+      </div>
+      <div style="position:relative;height:240px;"><canvas id="qFullTrendChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PRODUCTS VIEW -->
+  <div id="viewProducts" style="display:none;">
+    <div class="section-head">
+      <div class="section-title">Top 10 <em>Produk</em> Terjual</div>
+      <div class="section-tag">Mengikut platform dan bulan</div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;">
+        <button class="prod-tab active" data-platform="shopee" onclick="setProdTab('shopee')">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--shopee);margin-right:5px;vertical-align:middle;"></span>Shopee
+        </button>
+        <button class="prod-tab" data-platform="tiktok" onclick="setProdTab('tiktok')">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--tiktok);margin-right:5px;vertical-align:middle;"></span>TikTok
+        </button>
+      </div>
+      <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;" id="monthTabGroup">
+        <button class="month-tab active" data-month="feb" onclick="setProdMonth('feb')">Februari</button>
+        <button class="month-tab" data-month="mar" onclick="setProdMonth('mar')">Mac</button>
+      </div>
+      <span id="tiktokMonthNote" style="display:none;font-size:10px;font-family:var(--mono);color:var(--muted);padding:4px 10px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);">
+        * Data TikTok produk tersedia untuk Mac sahaja
+      </span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;" id="prodKPIRow"></div>
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;">
+      <div class="chart-card">
+        <div class="chart-title" id="prodChartTitle">Sales (RM) — Top 10</div>
+        <div class="chart-sub" id="prodChartSub">Shopee · Februari 2026</div>
+        <div style="position:relative;height:340px;"><canvas id="prodBarChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Pecahan jumlah sales</div>
+        <div class="chart-sub">Sumbangan (%) setiap produk</div>
+        <div style="position:relative;height:220px;"><canvas id="prodPieChart"></canvas></div>
+        <div id="prodLegend" style="margin-top:10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto;max-height:120px;"></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:14px;">
+      <div class="chart-title" id="prodTableTitle">Jadual Lengkap — Top 10 Produk</div>
+      <div class="week-table-wrap" style="margin-top:14px;">
+        <table class="week-table">
+          <thead><tr id="prodTableHead"></tr></thead>
+          <tbody id="prodTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tiktokChannelSection" style="display:none;">
+      <div class="section-head" style="margin-top:0;">
+        <div class="section-title">Pecahan Channel — TikTok</div>
+        <div class="section-tag">Video · LIVE · Product Card · Shop Tab</div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">GMV mengikut channel — Top 10 produk (Mac)</div>
+        <div class="legend-row">
+          <div class="legend-item"><div class="legend-dot" style="background:#534AB7"></div>Video</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#D85A30"></div>LIVE</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Shop Tab</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#BA7517"></div>Product Card</div>
+        </div>
+        <div style="position:relative;height:300px;"><canvas id="tiktokChannelChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+Patriots Publishing · Data Shopee & TikTok Shop · Feb–Mac 2026</div>
+    <div class="footer-text" id="footerCount">—</div>
+  </div>
+</main>
+</div>
+
+<script>
+// ─── RAW DATA ───────────────────────────────────────────────
+const RAW = {
+  shopee: {
+    feb: {
+      dates: ['2026-02-01','2026-02-02','2026-02-03','2026-02-04','2026-02-05','2026-02-06','2026-02-07','2026-02-08','2026-02-09','2026-02-10','2026-02-11','2026-02-12','2026-02-13','2026-02-14','2026-02-15','2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-02-21','2026-02-22','2026-02-23','2026-02-24','2026-02-25','2026-02-26','2026-02-27','2026-02-28'],
+      rm: [1618.35,2410.2,2160.1,1606.9,3109.83,2170.69,1855.55,1330,1432.4,2276.2,1576.7,2462.45,2242.11,1656.22,2897.49,1721.4,1352.4,1314.5,1964.5,1027,2257.9,2224.5,1963.96,1794.1,1625,1187.2,863.4,857],
+      units: [51,70,63,49,87,65,56,38,39,72,45,73,65,48,87,52,37,40,53,30,63,64,60,53,47,33,23,25],
+      buyers: [34,40,45,37,61,47,37,37,34,49,26,48,47,38,51,36,30,28,43,22,49,50,44,46,38,21,20,17],
+      visitors: [532,520,757,808,900,918,726,670,712,710,578,614,557,639,740,594,454,506,522,498,613,536,491,480,644,405,308,416]
+    },
+    mar: {
+      dates: ['2026-03-01','2026-03-02','2026-03-03','2026-03-04','2026-03-05','2026-03-06','2026-03-07','2026-03-08','2026-03-09','2026-03-10','2026-03-11','2026-03-12','2026-03-13','2026-03-14','2026-03-15','2026-03-16','2026-03-17','2026-03-18','2026-03-19','2026-03-20','2026-03-21','2026-03-22','2026-03-23','2026-03-24','2026-03-25','2026-03-26','2026-03-27','2026-03-28','2026-03-29','2026-03-30','2026-03-31'],
+      rm: [1507.8,1836.8,2494.4,1915.7,1317.4,977.4,2053.91,1198.37,1304.2,1341.17,1420.15,965.44,1410.99,1830.79,2427.95,1673.9,1600,1361.6,685.97,1342.65,1951.85,1573.73,883.7,1930.8,1387.11,1482.7,1552.1,1467.1,1584.7,913.11,898.7],
+      units: [45,49,70,55,38,28,56,33,40,39,44,28,37,55,61,58,48,44,21,45,57,50,28,59,42,47,48,46,48,28,29],
+      buyers: [27,35,48,33,27,24,37,28,22,28,23,22,26,39,54,35,37,37,17,29,24,33,23,39,34,20,28,25,40,19,20],
+      visitors: [423,489,498,465,366,402,496,461,387,374,371,359,400,476,564,440,442,431,389,418,300,341,298,406,415,418,399,406,528,431,357]
+    }
+  },
+  tiktok: {
+    feb: {
+      dates: ['2026-02-01','2026-02-02','2026-02-03','2026-02-04','2026-02-05','2026-02-06','2026-02-07','2026-02-08','2026-02-09','2026-02-10','2026-02-11','2026-02-12','2026-02-13','2026-02-14','2026-02-15','2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-02-21','2026-02-22','2026-02-23','2026-02-24','2026-02-25','2026-02-26','2026-02-27','2026-02-28'],
+      rm: [1754.69,1110.45,1829.55,2024.98,2497.69,1790.38,1414.04,1518.35,1130.63,1573.43,2490.26,1491,1601.37,1785.44,1993.33,1992.72,2210.46,2137.2,2158.13,1602.72,2065.12,2572.76,1137.6,1214.44,2117.77,1095.42,1100.48,3409.6],
+      units: [37,30,37,54,65,47,35,38,27,42,60,37,40,48,49,53,55,53,54,39,54,59,29,33,53,32,25,81],
+      orders: [32,24,32,48,63,45,30,37,27,39,53,37,37,46,47,51,52,51,47,33,44,55,29,31,49,31,25,78]
+    },
+    mar: {
+      dates: ['2026-03-01','2026-03-02','2026-03-03','2026-03-04','2026-03-05','2026-03-06','2026-03-07','2026-03-08','2026-03-09','2026-03-10','2026-03-11','2026-03-12','2026-03-13','2026-03-14','2026-03-15','2026-03-16','2026-03-17','2026-03-18','2026-03-19','2026-03-20','2026-03-21','2026-03-22','2026-03-23','2026-03-24','2026-03-25','2026-03-26','2026-03-27','2026-03-28','2026-03-29','2026-03-30','2026-03-31'],
+      rm: [1645.95,1597.96,1206.5,3163.99,1968.78,1297.16,2603.33,2048.84,1854.87,2843.81,758.17,1876.21,1646.65,2140.84,2532.85,1483.19,1275.04,755.24,0,0,0,0,0,0,295.1,1193.36,1555.05,2307.73,1595.37,1892.56,1845.29],
+      units: [39,41,28,69,44,33,59,50,44,69,22,46,38,50,61,38,37,21,0,0,0,0,0,0,8,34,46,70,48,56,54],
+      orders: [37,31,28,65,40,29,52,48,39,56,21,43,37,44,46,32,34,19,0,0,0,0,0,0,8,30,41,59,46,50,53]
+    }
+  }
+};
+
+// Weekly data with week dates
+const WEEKLY = {
+  shopee: [
+    { week:'W5', label:'Feb 01–01', month:'feb', rm:1618.35, units:51, buyers:34 },
+    { week:'W6', label:'Feb 02–08', month:'feb', rm:14643.27, units:428, buyers:304 },
+    { week:'W7', label:'Feb 09–15', month:'feb', rm:14543.57, units:429, buyers:293 },
+    { week:'W8', label:'Feb 16–22', month:'feb', rm:11862.2, units:339, buyers:258 },
+    { week:'W9', label:'Feb 23–Mar 01', month:'both', rm:1618.35+8290.66+1507.8, units:51+241+45, buyers:34+186+27 },
+    { week:'W10',label:'Mar 02–08', month:'mar', rm:11793.98, units:329, buyers:232 },
+    { week:'W11',label:'Mar 09–15', month:'mar', rm:10700.69, units:304, buyers:214 },
+    { week:'W12',label:'Mar 16–22', month:'mar', rm:10189.7, units:323, buyers:212 },
+    { week:'W13',label:'Mar 23–29', month:'mar', rm:10288.21, units:318, buyers:209 },
+    { week:'W14',label:'Mar 30–31', month:'mar', rm:1811.81, units:57, buyers:39 },
+  ],
+  tiktok: [
+    { week:'W5', label:'Feb 01–01', month:'feb', rm:1754.69, units:37, orders:32 },
+    { week:'W6', label:'Feb 02–08', month:'feb', rm:12185.44, units:306, orders:279 },
+    { week:'W7', label:'Feb 09–15', month:'feb', rm:12065.46, units:303, orders:286 },
+    { week:'W8', label:'Feb 16–22', month:'feb', rm:14739.11, units:367, orders:333 },
+    { week:'W9', label:'Feb 23–Mar 01', month:'both', rm:1645.95+10075.31, units:39+253, orders:37+243 },
+    { week:'W10',label:'Mar 02–08', month:'mar', rm:13886.56, units:324, orders:293 },
+    { week:'W11',label:'Mar 09–15', month:'mar', rm:13653.4, units:330, orders:286 },
+    { week:'W12',label:'Mar 16–22', month:'mar', rm:3513.47, units:96, orders:85, deadZone:true },
+    { week:'W13',label:'Mar 23–29', month:'mar', rm:6946.61, units:206, orders:184 },
+    { week:'W14',label:'Mar 30–31', month:'mar', rm:3737.85, units:110, orders:103 },
+  ]
+};
+
+// ─── STATE ──────────────────────────────────────────────────
+let state = {
+  range: 'both',
+  dateFrom: '2026-02-01',
+  dateTo: '2026-03-31',
+  showShopee: true,
+  showTiktok: true,
+  view: 'overview',
+  weekMetric: 'rm'
+};
+
+let charts = {};
+
+// ─── HELPERS ─────────────────────────────────────────────────
+function fmt(n) { return 'RM ' + n.toLocaleString('ms-MY', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtShort(n) { return n >= 1000 ? 'RM ' + (n/1000).toFixed(1) + 'k' : 'RM ' + Math.round(n); }
+function inRange(dateStr) {
+  const d = dateStr.replace(/-/g,'');
+  const f = state.dateFrom.replace(/-/g,'');
+  const t = state.dateTo.replace(/-/g,'');
+  return d >= f && d <= t;
+}
+function filterDates(platform, field) {
+  const src = platform === 'shopee'
+    ? [...RAW.shopee.feb.dates.map((d,i)=>({d,v:RAW.shopee.feb[field][i]})), ...RAW.shopee.mar.dates.map((d,i)=>({d,v:RAW.shopee.mar[field][i]}))]
+    : [...RAW.tiktok.feb.dates.map((d,i)=>({d,v:RAW.tiktok.feb[field][i]})), ...RAW.tiktok.mar.dates.map((d,i)=>({d,v:RAW.tiktok.mar[field][i]}))];
+  return src.filter(x=>inRange(x.d));
+}
+function sum(arr) { return arr.reduce((a,b)=>a+b,0); }
+function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+// ─── FILTER LOGIC ────────────────────────────────────────────
+function setRange(r) {
+  state.range = r;
+  document.querySelectorAll('.date-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  if(r==='feb') { state.dateFrom='2026-02-01'; state.dateTo='2026-02-28'; }
+  else if(r==='mar') { state.dateFrom='2026-03-01'; state.dateTo='2026-03-31'; }
+  else { state.dateFrom='2026-02-01'; state.dateTo='2026-03-31'; }
+  document.getElementById('dateFrom').value = state.dateFrom;
+  document.getElementById('dateTo').value = state.dateTo;
+  renderAll();
+}
+function applyCustomRange() {
+  state.dateFrom = document.getElementById('dateFrom').value;
+  state.dateTo = document.getElementById('dateTo').value;
+  state.range = 'custom';
+  document.querySelectorAll('.date-btn').forEach(b=>b.classList.remove('active'));
+  renderAll();
+}
+function togglePlatform(p) {
+  if(p==='shopee') {
+    state.showShopee = !state.showShopee;
+    const el = document.getElementById('shopeeToggle');
+    el.classList.toggle('active-shopee', state.showShopee);
+    el.classList.toggle('toggle-on', state.showShopee);
+    el.classList.toggle('toggle-off', !state.showShopee);
+    el.querySelector('.toggle-switch').style.background = state.showShopee ? 'var(--shopee)' : '';
+  } else {
+    state.showTiktok = !state.showTiktok;
+    const el = document.getElementById('tiktokToggle');
+    el.classList.toggle('active-tiktok', state.showTiktok);
+    el.classList.toggle('toggle-on', state.showTiktok);
+    el.classList.toggle('toggle-off', !state.showTiktok);
+    el.querySelector('.toggle-switch').style.background = state.showTiktok ? 'var(--tiktok)' : '';
+  }
+  renderAll();
+}
+function setView(v) {
+  state.view = v;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  event.target.closest('.nav-item').classList.add('active');
+  document.getElementById('viewOverview').style.display   = v==='overview'   ? '' : 'none';
+  document.getElementById('viewMonthly').style.display    = v==='monthly'    ? '' : 'none';
+  document.getElementById('viewQuarterly').style.display  = v==='quarterly'  ? '' : 'none';
+  document.getElementById('viewWeekly').style.display     = v==='weekly'     ? '' : 'none';
+  document.getElementById('viewDaily').style.display      = v==='daily'      ? '' : 'none';
+  document.getElementById('viewProducts').style.display   = v==='products'   ? '' : 'none';
+  renderAll();
+}
+function setWeekMetric(m) {
+  state.weekMetric = m;
+  document.querySelectorAll('.metric-tab').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderWeekly();
+}
+
+// ─── DATA COMPUTATION ─────────────────────────────────────────
+function getFilteredData() {
+  const s = { rm:[], units:[], buyers:[], visitors:[], dates:[] };
+  const t = { rm:[], units:[], orders:[], dates:[] };
+  [...RAW.shopee.feb.dates, ...RAW.shopee.mar.dates].forEach((d,i) => {
+    if(!inRange(d)) return;
+    const idx = i < 28 ? i : i-28;
+    const src = i < 28 ? RAW.shopee.feb : RAW.shopee.mar;
+    s.dates.push(d); s.rm.push(src.rm[idx]); s.units.push(src.units[idx]);
+    s.buyers.push(src.buyers[idx]); s.visitors.push(src.visitors[idx]);
+  });
+  [...RAW.tiktok.feb.dates, ...RAW.tiktok.mar.dates].forEach((d,i) => {
+    if(!inRange(d)) return;
+    const idx = i < 28 ? i : i-28;
+    const src = i < 28 ? RAW.tiktok.feb : RAW.tiktok.mar;
+    t.dates.push(d); t.rm.push(src.rm[idx]); t.units.push(src.units[idx]); t.orders.push(src.orders[idx]);
+  });
+  return { s, t };
+}
+
+// ─── RENDER KPI ───────────────────────────────────────────────
+function renderKPI() {
+  const { s, t } = getFilteredData();
+  const sRM = state.showShopee ? sum(s.rm) : 0;
+  const tRM = state.showTiktok ? sum(t.rm) : 0;
+  const sUnits = state.showShopee ? sum(s.units) : 0;
+  const tUnits = state.showTiktok ? sum(t.units) : 0;
+  document.getElementById('kpiTotalGMV').textContent = fmtShort(sRM + tRM);
+  document.getElementById('kpiShopeeGMV').textContent = fmtShort(sRM);
+  document.getElementById('kpiTiktokGMV').textContent = fmtShort(tRM);
+  document.getElementById('kpiUnits').textContent = (sUnits + tUnits).toLocaleString();
+  document.getElementById('kpiUnitsSub').textContent = `Shopee ${sUnits.toLocaleString()} + TikTok ${tUnits.toLocaleString()}`;
+
+  // Shopee AOV & TikTok AOV
+  const sBuyers = sum(s.buyers);
+  const tOrders = sum(t.orders);
+  document.getElementById('avgVisitors').textContent = s.visitors.length ? Math.round(sum(s.visitors)/s.visitors.length).toLocaleString() : '—';
+  document.getElementById('avgConv').textContent = (sBuyers && sum(s.visitors)) ? (sBuyers/sum(s.visitors)*100).toFixed(1)+'%' : '—';
+  document.getElementById('shopeeAOV').textContent = sBuyers ? 'RM '+( sRM/sBuyers).toFixed(2) : '—';
+  document.getElementById('tiktokAOV').textContent = tOrders ? 'RM '+(tRM/tOrders).toFixed(2) : '—';
+
+  // Date display
+  const from = state.dateFrom.split('-').reverse().join('/');
+  const to = state.dateTo.split('-').reverse().join('/');
+  document.getElementById('dateRangeDisplay').textContent = from + ' – ' + to;
+  document.getElementById('footerCount').textContent = `${s.dates.length} hari Shopee · ${t.dates.length} hari TikTok`;
+}
+
+// ─── RENDER OVERVIEW CHARTS ───────────────────────────────────
+function renderOverview() {
+  const { s, t } = getFilteredData();
+  const hasFeb = state.dateFrom <= '2026-02-28';
+  const hasMar = state.dateTo >= '2026-03-01';
+  const months = []; const sRMArr = []; const tRMArr = []; const sUArr = []; const tUArr = [];
+  if(hasFeb) {
+    months.push('Februari');
+    const fIdx = RAW.shopee.feb.dates.filter(d=>inRange(d));
+    sRMArr.push(sum(RAW.shopee.feb.dates.map((d,i)=>inRange(d)?RAW.shopee.feb.rm[i]:0)));
+    tRMArr.push(sum(RAW.tiktok.feb.dates.map((d,i)=>inRange(d)?RAW.tiktok.feb.rm[i]:0)));
+    sUArr.push(sum(RAW.shopee.feb.dates.map((d,i)=>inRange(d)?RAW.shopee.feb.units[i]:0)));
+    tUArr.push(sum(RAW.tiktok.feb.dates.map((d,i)=>inRange(d)?RAW.tiktok.feb.units[i]:0)));
+  }
+  if(hasMar) {
+    months.push('Mac');
+    sRMArr.push(sum(RAW.shopee.mar.dates.map((d,i)=>inRange(d)?RAW.shopee.mar.rm[i]:0)));
+    tRMArr.push(sum(RAW.tiktok.mar.dates.map((d,i)=>inRange(d)?RAW.tiktok.mar.rm[i]:0)));
+    sUArr.push(sum(RAW.shopee.mar.dates.map((d,i)=>inRange(d)?RAW.shopee.mar.units[i]:0)));
+    tUArr.push(sum(RAW.tiktok.mar.dates.map((d,i)=>inRange(d)?RAW.tiktok.mar.units[i]:0)));
+  }
+  const baseOpts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{color:'#7a7880',font:{size:11}}}, y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:11},callback:v=>fmtShort(v)}} } };
+  const unitOpts = JSON.parse(JSON.stringify(baseOpts));
+  unitOpts.scales.y.ticks.callback = v => v.toLocaleString();
+
+  destroyChart('monthlyRM'); destroyChart('monthlyUnits'); destroyChart('pie');
+
+  const ds = [];
+  if(state.showShopee) ds.push({label:'Shopee',data:sRMArr,backgroundColor:'rgba(232,100,58,0.7)',borderColor:'var(--shopee)',borderWidth:1.5,borderRadius:5});
+  if(state.showTiktok) ds.push({label:'TikTok',data:tRMArr,backgroundColor:'rgba(123,110,246,0.7)',borderColor:'var(--tiktok)',borderWidth:1.5,borderRadius:5});
+  charts['monthlyRM'] = new Chart(document.getElementById('monthlyRMChart'), { type:'bar', data:{labels:months,datasets:ds}, options:baseOpts });
+
+  const dsU = [];
+  if(state.showShopee) dsU.push({label:'Shopee',data:sUArr,backgroundColor:'rgba(232,100,58,0.7)',borderColor:'var(--shopee)',borderWidth:1.5,borderRadius:5});
+  if(state.showTiktok) dsU.push({label:'TikTok',data:tUArr,backgroundColor:'rgba(123,110,246,0.7)',borderColor:'var(--tiktok)',borderWidth:1.5,borderRadius:5});
+  charts['monthlyUnits'] = new Chart(document.getElementById('monthlyUnitsChart'), { type:'bar', data:{labels:months,datasets:dsU}, options:unitOpts });
+
+  const pieLabels = []; const pieData = []; const pieColors = [];
+  if(state.showShopee) { pieLabels.push('Shopee'); pieData.push(Math.round(sum(s.rm))); pieColors.push('#e8643a'); }
+  if(state.showTiktok) { pieLabels.push('TikTok'); pieData.push(Math.round(sum(t.rm))); pieColors.push('#7b6ef6'); }
+  charts['pie'] = new Chart(document.getElementById('pieChart'), {
+    type:'doughnut',
+    data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#7a7880',font:{size:11},boxWidth:10,padding:16}},tooltip:{callbacks:{label:ctx=>`RM ${ctx.parsed.toLocaleString()}`}}}}
+  });
+}
+
+// ─── RENDER WEEKLY ────────────────────────────────────────────
+function renderWeekly() {
+  const m = state.weekMetric;
+  const allWeeks = ['W5','W6','W7','W8','W9','W10','W11','W12','W13','W14'];
+  const wLabels = ['Feb W1','Feb W2','Feb W3','Feb W4','Feb W5/Mar W1','Mar W2','Mar W3','Mar W4','Mar W5','Mar W6'];
+
+  // Filter weeks by date range
+  const weekInRange = (w) => {
+    const wObj = WEEKLY.shopee.find(x=>x.week===w);
+    if(!wObj) return false;
+    if(state.range==='feb') return wObj.month==='feb' || w==='W9';
+    if(state.range==='mar') return wObj.month==='mar' || w==='W9';
+    return true;
+  };
+
+  const filtWeeks = allWeeks.filter(weekInRange);
+  const sMap = Object.fromEntries(WEEKLY.shopee.map(x=>[x.week,x]));
+  const tMap = Object.fromEntries(WEEKLY.tiktok.map(x=>[x.week,x]));
+
+  const sVals = filtWeeks.map(w => { const d=sMap[w]; return m==='rm'?d.rm : m==='units'?d.units : d.buyers; });
+  const tVals = filtWeeks.map(w => { const d=tMap[w]; return m==='rm'?d.rm : m==='units'?d.units : d.orders; });
+  const cVals = filtWeeks.map((w,i)=>sVals[i]+tVals[i]);
+  const filtLabels = filtWeeks.map(w=>wLabels[allWeeks.indexOf(w)]);
+  const maxC = Math.max(...cVals);
+
+  destroyChart('weeklyBar');
+  const ds = [];
+  if(state.showShopee) ds.push({label:'Shopee',data:sVals,backgroundColor:'rgba(232,100,58,0.75)',borderColor:'#e8643a',borderWidth:1,borderRadius:4});
+  if(state.showTiktok) ds.push({label:'TikTok',data:tVals,backgroundColor:'rgba(123,110,246,0.75)',borderColor:'#7b6ef6',borderWidth:1,borderRadius:4});
+  const yFmt = m==='rm' ? v=>fmtShort(v) : v=>v.toLocaleString();
+  charts['weeklyBar'] = new Chart(document.getElementById('weeklyBarChart'), {
+    type:'bar',
+    data:{labels:filtLabels,datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#7a7880',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:10},callback:yFmt}}}}
+  });
+
+  // Table
+  const hasMar = filtWeeks.some(w=>['W10','W11','W12','W13','W14'].includes(w));
+  document.getElementById('deadZoneNote').style.display = (hasMar && state.showTiktok) ? '' : 'none';
+
+  const tbody = document.getElementById('weeklyTableBody');
+  let totS=0,totT=0,totSU=0,totTU=0;
+  tbody.innerHTML = filtWeeks.map(w => {
+    const s=sMap[w]; const t=tMap[w];
+    const sRM=s.rm; const tRM=t.rm; const cRM=sRM+tRM;
+    const sU=s.units; const tU=t.units; const cU=sU+tU;
+    const isDeadZone = t.deadZone;
+    totS+=sRM; totT+=tRM; totSU+=sU; totTU+=tU;
+    const sBar = `<div class="mini-bar-wrap"><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${Math.round(sRM/maxC*100)}%;background:var(--shopee)"></div></div></div>`;
+    const tBar = `<div class="mini-bar-wrap"><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${Math.round(tRM/maxC*100)}%;background:var(--tiktok)"></div></div></div>`;
+    const dzTag = isDeadZone ? ' <span style="font-size:9px;color:var(--red);font-family:var(--mono);">⚠ dead zone</span>' : '';
+    return `<tr>
+      <td><span class="week-label">${w}</span></td>
+      <td style="font-size:11px;color:var(--muted);font-family:var(--mono);">${wLabels[allWeeks.indexOf(w)]}</td>
+      <td class="rm-val shopee-val">${state.showShopee?'RM '+sRM.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0}):'—'} ${state.showShopee?sBar:''}</td>
+      <td>${state.showShopee?`<span class="unit-badge">${sU}</span>`:'—'}</td>
+      <td class="rm-val tiktok-val">${state.showTiktok?'RM '+tRM.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0}):'—'}${dzTag} ${state.showTiktok?tBar:''}</td>
+      <td>${state.showTiktok?`<span class="unit-badge">${tU}</span>`:'—'}</td>
+      <td class="rm-val combined-val">RM ${cRM.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
+      <td><span class="unit-badge" style="color:var(--combined)">${cU}</span></td>
+    </tr>`;
+  }).join('') + `<tr class="total-row">
+    <td colspan="2" style="font-family:var(--mono);font-size:11px;color:var(--muted);">JUMLAH</td>
+    <td class="rm-val shopee-val">${state.showShopee?'RM '+totS.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0}):'—'}</td>
+    <td>${state.showShopee?`<span class="unit-badge">${totSU}</span>`:'—'}</td>
+    <td class="rm-val tiktok-val">${state.showTiktok?'RM '+totT.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0}):'—'}</td>
+    <td>${state.showTiktok?`<span class="unit-badge">${totTU}</span>`:'—'}</td>
+    <td class="rm-val combined-val">RM ${(totS+totT).toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
+    <td><span class="unit-badge" style="color:var(--combined)">${totSU+totTU}</span></td>
+  </tr>`;
+}
+
+// ─── RENDER DAILY ─────────────────────────────────────────────
+function renderDaily() {
+  const { s, t } = getFilteredData();
+  const hasDeadZone = t.dates.some(d=>d>='2026-03-19'&&d<='2026-03-24'&&t.rm[t.dates.indexOf(d)]===0);
+  document.getElementById('deadZoneNoteDaily').style.display = (hasDeadZone && state.showTiktok) ? '' : 'none';
+
+  const allDates = Array.from(new Set([...s.dates,...t.dates])).sort();
+  const sRMMap = Object.fromEntries(s.dates.map((d,i)=>[d,s.rm[i]]));
+  const tRMMap = Object.fromEntries(t.dates.map((d,i)=>[d,t.rm[i]]));
+  const sUMap = Object.fromEntries(s.dates.map((d,i)=>[d,s.units[i]]));
+  const tUMap = Object.fromEntries(t.dates.map((d,i)=>[d,t.units[i]]));
+
+  const shortDate = d => d.slice(5).replace('-','/');
+  const labels = allDates.map(shortDate);
+  const sRMArr = allDates.map(d=>sRMMap[d]??null);
+  const tRMArr = allDates.map(d=>tRMMap[d]??null);
+  const sUArr = allDates.map(d=>sUMap[d]??null);
+  const tUArr = allDates.map(d=>tUMap[d]??null);
+
+  const lineOpts = (yFmt) => ({ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, plugins:{legend:{display:false},tooltip:{backgroundColor:'#18181c',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#f0ede8',bodyColor:'#7a7880',titleFont:{family:'DM Mono'},bodyFont:{family:'DM Mono',size:11}}},
+    scales:{x:{grid:{display:false},ticks:{color:'#7a7880',font:{size:10},maxTicksLimit:12}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:10},callback:yFmt}}} });
+
+  destroyChart('dailyRM'); destroyChart('dailyUnits');
+  const dsRM = [];
+  if(state.showShopee) dsRM.push({label:'Shopee',data:sRMArr,borderColor:'#e8643a',backgroundColor:'rgba(232,100,58,0.06)',tension:0.35,pointRadius:0,borderWidth:1.5,fill:true,spanGaps:false});
+  if(state.showTiktok) dsRM.push({label:'TikTok',data:tRMArr,borderColor:'#7b6ef6',backgroundColor:'rgba(123,110,246,0.06)',tension:0.35,pointRadius:0,borderWidth:1.5,fill:true,spanGaps:false});
+  charts['dailyRM'] = new Chart(document.getElementById('dailyRMChart'), { type:'line', data:{labels,datasets:dsRM}, options:lineOpts(v=>fmtShort(v)) });
+
+  const dsU = [];
+  if(state.showShopee) dsU.push({label:'Shopee',data:sUArr,borderColor:'#e8643a',tension:0.35,pointRadius:0,borderWidth:1.5,spanGaps:false});
+  if(state.showTiktok) dsU.push({label:'TikTok',data:tUArr,borderColor:'#7b6ef6',tension:0.35,pointRadius:0,borderWidth:1.5,spanGaps:false});
+  charts['dailyUnits'] = new Chart(document.getElementById('dailyUnitsChart'), { type:'line', data:{labels,datasets:dsU}, options:lineOpts(v=>v.toLocaleString()) });
+}
+
+// ─── PRODUCT DATA ────────────────────────────────────────────
+const PRODUCTS = {
+  shopee: {
+    feb: [
+      { name:'Keajaiban-keajaiban Dunia',         rm:5706.63, units:152, orders:152, ctr:1.94, conv:13.35 },
+      { name:'Mahakarya - Tembok Yakjuj Makjuj',  rm:4668.51, units:147, orders:146, ctr:1.66, conv:4.31  },
+      { name:'Para Khalifah Dunia Umat Islam',    rm:4177.66, units:128, orders:126, ctr:1.96, conv:13.83 },
+      { name:'The Storytelling Code',             rm:4000.65, units:107, orders:107, ctr:2.15, conv:7.03  },
+      { name:'Kitab Tamadun Uthmaniyah',          rm:3722.87, units:88,  orders:87,  ctr:2.33, conv:5.20  },
+      { name:'Mahakarya - Tragedi Ulek Mayang',   rm:1105.77, units:30,  orders:30,  ctr:2.05, conv:2.28  },
+      { name:'Adikuasa: Merebut Orde Dunia',      rm:988.47,  units:17,  orders:16,  ctr:2.06, conv:4.15  },
+      { name:'Write & Brave - What\'s Your Dream?',rm:905.04, units:19,  orders:19,  ctr:2.43, conv:3.65  },
+      { name:'Palestin: Dari Sungai Ke Segara',   rm:864.87,  units:31,  orders:31,  ctr:1.88, conv:7.51  },
+      { name:'Zaman Keemasan Tamadun Islam',       rm:806.00,  units:25,  orders:25,  ctr:2.44, conv:6.70  },
+    ],
+    mar: [
+      { name:'Keajaiban-keajaiban Dunia',                      rm:5222.80, units:144, orders:143, ctr:2.06, conv:14.56 },
+      { name:'Kiamat Sudah Dekat: Peristiwa dan Garis Masa',   rm:5052.57, units:166, orders:166, ctr:1.74, conv:13.80 },
+      { name:'Mahakarya - Tembok Yakjuj Makjuj',               rm:2799.16, units:92,  orders:92,  ctr:1.58, conv:6.53  },
+      { name:'Adikuasa: Merebut Orde Dunia',                   rm:2674.66, units:49,  orders:49,  ctr:2.41, conv:7.69  },
+      { name:'Amerika: Penguasa Dunia Baharu',                 rm:2469.65, units:45,  orders:44,  ctr:2.91, conv:7.89  },
+      { name:'The Patriots - Kombo Akhir Zaman',               rm:1693.13, units:30,  orders:30,  ctr:2.94, conv:4.78  },
+      { name:'Kitab Tamadun Uthmaniyah',                       rm:1434.77, units:37,  orders:37,  ctr:2.36, conv:3.87  },
+      { name:'Para Khalifah Dunia Umat Islam',                 rm:1338.45, units:44,  orders:44,  ctr:1.91, conv:8.64  },
+      { name:'The Storytelling Code',                          rm:1166.55, units:33,  orders:33,  ctr:1.75, conv:4.23  },
+      { name:'The Patriots - Kitab Tamadun Melayu',            rm:949.05,  units:28,  orders:28,  ctr:2.35, conv:5.73  },
+    ]
+  },
+  tiktok: {
+    mar: [
+      { name:'Amerika: Penguasa Dunia Baharu',         rm:9644.40, units:185, orders:185, vidCTR:3.72, vidConv:0.61, vid:50, live:31, card:18, shop:7  },
+      { name:'The Storytelling Code',                  rm:4009.56, units:113, orders:112, vidCTR:4.56, vidConv:0.70, vid:73, live:2,  card:26, shop:10 },
+      { name:'Pertempuran Di Hutan',                   rm:3219.27, units:90,  orders:87,  vidCTR:2.23, vidConv:6.04, vid:88, live:0,  card:12, shop:6  },
+      { name:'Ilmu Alam Melayu',                       rm:2847.95, units:80,  orders:79,  vidCTR:5.52, vidConv:1.51, vid:87, live:0,  card:13, shop:9  },
+      { name:'Psychology of Money [BM]',               rm:2425.66, units:53,  orders:53,  vidCTR:5.61, vidConv:0.45, vid:73, live:4,  card:24, shop:16 },
+      { name:'MOSSAD: Perisik, Propaganda',            rm:1710.48, units:64,  orders:64,  vidCTR:2.69, vidConv:3.62, vid:90, live:0,  card:10, shop:5  },
+      { name:'Kitab Tamadun Melayu',                   rm:1673.36, units:47,  orders:47,  vidCTR:2.68, vidConv:1.10, vid:61, live:0,  card:39, shop:20 },
+      { name:'Kombo Bangsa Enam Angka',                rm:1400.43, units:16,  orders:16,  vidCTR:3.79, vidConv:1.25, vid:11, live:50, card:39, shop:6  },
+      { name:'Write & Brave - Bangsa Enam Angka',      rm:1166.37, units:41,  orders:41,  vidCTR:7.49, vidConv:0.24, vid:12, live:63, card:25, shop:15 },
+      { name:'Kombo Geopolitik Ayman Rashdan',         rm:1143.70, units:15,  orders:15,  vidCTR:1.27, vidConv:0.36, vid:13, live:0,  card:87, shop:26 },
+    ]
+  }
+};
+
+// product state
+let prodState = { platform:'shopee', month:'feb' };
+
+function setProdTab(p) {
+  prodState.platform = p;
+  document.querySelectorAll('.prod-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`.prod-tab[data-platform="${p}"]`).classList.add('active');
+  // TikTok only has Mar data
+  if(p==='tiktok') {
+    prodState.month = 'mar';
+    document.querySelectorAll('.month-tab').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.month-tab[data-month="mar"]').classList.add('active');
+    document.getElementById('tiktokMonthNote').style.display = '';
+    document.getElementById('monthTabGroup').style.opacity = '0.4';
+    document.getElementById('monthTabGroup').style.pointerEvents = 'none';
+  } else {
+    document.getElementById('tiktokMonthNote').style.display = 'none';
+    document.getElementById('monthTabGroup').style.opacity = '1';
+    document.getElementById('monthTabGroup').style.pointerEvents = '';
+  }
+  renderProducts();
+}
+function setProdMonth(m) {
+  prodState.month = m;
+  document.querySelectorAll('.month-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`.month-tab[data-month="${m}"]`).classList.add('active');
+  renderProducts();
+}
+
+function renderProducts() {
+  const isTiktok = prodState.platform === 'tiktok';
+  const data = isTiktok ? PRODUCTS.tiktok.mar : PRODUCTS.shopee[prodState.month];
+  const color = isTiktok ? '#7b6ef6' : '#e8643a';
+  const monthLabel = prodState.month === 'feb' ? 'Februari' : 'Mac';
+  const platLabel = isTiktok ? 'TikTok Shop' : 'Shopee';
+
+  const totalRM = data.reduce((a,p)=>a+p.rm,0);
+  const totalUnits = data.reduce((a,p)=>a+p.units,0);
+  const totalOrders = data.reduce((a,p)=>a+p.orders,0);
+  const topAOV = (totalRM/totalOrders).toFixed(2);
+
+  // KPI row
+  document.getElementById('prodKPIRow').innerHTML = [
+    ['Top 10 GMV', `RM ${totalRM.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}`],
+    ['Top 10 Units', totalUnits.toLocaleString()],
+    ['Top 10 Orders', totalOrders.toLocaleString()],
+    ['Avg Order Value', `RM ${topAOV}`],
+  ].map(([l,v])=>`<div class="mc"><p class="ml">${l}</p><p class="mv" style="font-size:18px;">${v}</p><p class="ms nt">${platLabel} · ${isTiktok?'Mac':monthLabel}</p></div>`).join('');
+
+  // Short names for charts
+  const shortNames = data.map(p => p.name.length > 28 ? p.name.slice(0,26)+'…' : p.name);
+  const rms = data.map(p=>p.rm);
+
+  // Bar chart
+  destroyChart('prodBar'); destroyChart('prodPie');
+  document.getElementById('prodChartTitle').textContent = `Sales (RM) — Top 10 · ${platLabel}`;
+  document.getElementById('prodChartSub').textContent = `${platLabel} · ${isTiktok?'Mac 2026':monthLabel+' 2026'}`;
+
+  charts['prodBar'] = new Chart(document.getElementById('prodBarChart'), {
+    type:'bar',
+    data:{ labels:shortNames, datasets:[{ data:rms, backgroundColor:color+'cc', borderColor:color, borderWidth:1.5, borderRadius:4 }] },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>`RM ${ctx.parsed.x.toLocaleString()}`}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:10},callback:v=>fmtShort(v)}},
+        y:{grid:{display:false},ticks:{color:'#f0ede8',font:{size:10}}}
+      }
+    }
+  });
+
+  // Pie chart
+  const pieColors = ['#e8643a','#f0936a','#b73d1a','#c96030','#ff8c5e','#7b6ef6','#9d94f8','#5a4fd4','#a59ef8','#6e63e0'];
+  const usedColors = isTiktok
+    ? ['#7b6ef6','#9d94f8','#5a4fd4','#a59ef8','#6e63e0','#534AB7','#b3aef9','#7067e8','#8c84f0','#4d42b0']
+    : pieColors;
+  charts['prodPie'] = new Chart(document.getElementById('prodPieChart'), {
+    type:'doughnut',
+    data:{ labels:data.map(p=>p.name), datasets:[{data:rms, backgroundColor:usedColors, borderWidth:0}] },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${(ctx.parsed/totalRM*100).toFixed(1)}%`}}}}
+  });
+
+  // Custom legend
+  document.getElementById('prodLegend').innerHTML = data.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);font-family:var(--mono);">
+      <div style="width:8px;height:8px;border-radius:2px;flex-shrink:0;background:${usedColors[i]}"></div>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">#${i+1} ${p.name.slice(0,30)}</span>
+    </div>`).join('');
+
+  // Table
+  document.getElementById('prodTableTitle').textContent = `Jadual Lengkap — Top 10 · ${platLabel} · ${isTiktok?'Mac 2026':monthLabel+' 2026'}`;
+  const maxRM = Math.max(...rms);
+
+  if(isTiktok) {
+    document.getElementById('prodTableHead').innerHTML = `<th>#</th><th>Produk</th><th>GMV (RM)</th><th>Units</th><th>Orders</th><th>Video CTR</th><th>Video Conv.</th><th>Channel Utama</th>`;
+    document.getElementById('prodTableBody').innerHTML = data.map((p,i)=>{
+      const channels = [{l:'Vid',v:p.vid,c:'#534AB7'},{l:'Live',v:p.live,c:'#D85A30'},{l:'Card',v:p.card,c:'#BA7517'},{l:'Shop',v:p.shop,c:'#1D9E75'}];
+      const top = channels.sort((a,b)=>b.v-a.v)[0];
+      const barW = Math.round(p.rm/maxRM*100);
+      return `<tr>
+        <td><span class="week-label">${i+1}</span></td>
+        <td style="font-size:12px;max-width:180px;">${p.name}</td>
+        <td>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:500;color:var(--tiktok);">RM ${p.rm.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+          <div class="mini-bar-bg" style="width:80px;margin-top:3px;"><div class="mini-bar-fill" style="width:${barW}%;background:var(--tiktok)"></div></div>
+        </td>
+        <td><span class="unit-badge">${p.units}</span></td>
+        <td><span class="unit-badge">${p.orders}</span></td>
+        <td style="font-family:var(--mono);font-size:12px;">${p.vidCTR}%</td>
+        <td style="font-family:var(--mono);font-size:12px;">${p.vidConv}%</td>
+        <td><span style="font-size:10px;padding:2px 8px;border-radius:8px;font-family:var(--mono);background:${top.c}22;color:${top.c};">${top.l} ${top.v}%</span></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('tiktokChannelSection').style.display = '';
+    renderTiktokChannel(data);
+  } else {
+    document.getElementById('prodTableHead').innerHTML = `<th>#</th><th>Produk</th><th>Sales (RM)</th><th>Units</th><th>Orders</th><th>CTR</th><th>Conv. Rate</th>`;
+    document.getElementById('prodTableBody').innerHTML = data.map((p,i)=>{
+      const barW = Math.round(p.rm/maxRM*100);
+      const convColor = p.conv >= 10 ? 'var(--combined)' : p.conv >= 5 ? 'var(--gold)' : 'var(--muted)';
+      return `<tr>
+        <td><span class="week-label">${i+1}</span></td>
+        <td style="font-size:12px;max-width:200px;">${p.name}</td>
+        <td>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:500;color:var(--shopee);">RM ${p.rm.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+          <div class="mini-bar-bg" style="width:80px;margin-top:3px;"><div class="mini-bar-fill" style="width:${barW}%;background:var(--shopee)"></div></div>
+        </td>
+        <td><span class="unit-badge">${p.units}</span></td>
+        <td><span class="unit-badge">${p.orders}</span></td>
+        <td style="font-family:var(--mono);font-size:12px;">${p.ctr}%</td>
+        <td style="font-family:var(--mono);font-size:12px;color:${convColor};font-weight:500;">${p.conv}%</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('tiktokChannelSection').style.display = 'none';
+  }
+}
+
+function renderTiktokChannel(data) {
+  destroyChart('tiktokCh');
+  const shortNames = data.map(p => p.name.length > 22 ? p.name.slice(0,20)+'…' : p.name);
+  const totalRMs = data.map(p=>p.rm);
+  charts['tiktokCh'] = new Chart(document.getElementById('tiktokChannelChart'), {
+    type:'bar',
+    data:{
+      labels:shortNames,
+      datasets:[
+        { label:'Video',        data:data.map(p=>Math.round(p.rm*p.vid/100)), backgroundColor:'#534AB7', borderRadius:0 },
+        { label:'LIVE',         data:data.map(p=>Math.round(p.rm*p.live/100)), backgroundColor:'#D85A30', borderRadius:0 },
+        { label:'Shop Tab',     data:data.map(p=>Math.round(p.rm*p.shop/100)), backgroundColor:'#1D9E75', borderRadius:0 },
+        { label:'Product Card', data:data.map(p=>Math.round(p.rm*p.card/100)), backgroundColor:'#BA7517', borderRadius:4 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#18181c',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#f0ede8',bodyColor:'#7a7880',bodyFont:{family:'DM Mono',size:10},callbacks:{label:ctx=>`${ctx.dataset.label}: RM${ctx.parsed.y.toLocaleString()}`}}},
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{color:'#7a7880',font:{size:10}}},
+        y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:10},callback:v=>fmtShort(v)}}
+      }
+    }
+  });
+}
+
+
+function renderMonthly() {
+  // Pre-computed totals
+  const MONTHS = {
+    feb: {
+      sRM: 50958.05, sUnits: 1611, sBuyers: 1075, sVisitors: 16848,
+      tRM: 50820.01, tUnits: 1266, tOrders: 1173,
+      sAOV: 47.40, tAOV: 43.32, sConv: 6.38
+    },
+    mar: {
+      sRM: 46292.19, sUnits: 1486, sBuyers: 933, sVisitors: 12950,
+      tRM: 43383.84, tUnits: 1105, tOrders: 988,
+      sAOV: 49.62, tAOV: 43.91, sConv: 7.20
+    }
+  };
+
+  const months = ['Februari', 'Mac'];
+  const sRMs = [MONTHS.feb.sRM, MONTHS.mar.sRM];
+  const tRMs = [MONTHS.feb.tRM, MONTHS.mar.tRM];
+  const cRMs = [sRMs[0]+tRMs[0], sRMs[1]+tRMs[1]];
+  const sUs  = [MONTHS.feb.sUnits, MONTHS.mar.sUnits];
+  const tUs  = [MONTHS.feb.tUnits, MONTHS.mar.tUnits];
+
+  const barBase = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false},ticks:{color:'#7a7880',font:{size:11}}},
+            y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:10},callback:v=>fmtShort(v)}}} };
+
+  destroyChart('mCompRM'); destroyChart('mCompUnits'); destroyChart('mFebTrend'); destroyChart('mMarTrend');
+
+  const dsRM = [];
+  if(state.showShopee) dsRM.push({label:'Shopee',data:sRMs,backgroundColor:'rgba(232,100,58,0.75)',borderColor:'#e8643a',borderWidth:1.5,borderRadius:5});
+  if(state.showTiktok) dsRM.push({label:'TikTok',data:tRMs,backgroundColor:'rgba(123,110,246,0.75)',borderColor:'#7b6ef6',borderWidth:1.5,borderRadius:5});
+  dsRM.push({label:'Gabungan',data:cRMs,backgroundColor:'rgba(52,201,138,0.15)',borderColor:'#34c98a',borderWidth:1.5,borderRadius:5,type:'line',tension:0,pointRadius:5,pointBackgroundColor:'#34c98a'});
+  charts['mCompRM'] = new Chart(document.getElementById('monthlyCompRMChart'), { type:'bar', data:{labels:months,datasets:dsRM}, options:barBase });
+
+  const unitOpts = JSON.parse(JSON.stringify(barBase));
+  unitOpts.scales.y.ticks.callback = v=>v.toLocaleString();
+  const dsU = [];
+  if(state.showShopee) dsU.push({label:'Shopee',data:sUs,backgroundColor:'rgba(232,100,58,0.75)',borderColor:'#e8643a',borderWidth:1.5,borderRadius:5});
+  if(state.showTiktok) dsU.push({label:'TikTok',data:tUs,backgroundColor:'rgba(123,110,246,0.75)',borderColor:'#7b6ef6',borderWidth:1.5,borderRadius:5});
+  charts['mCompUnits'] = new Chart(document.getElementById('monthlyCompUnitsChart'), { type:'bar', data:{labels:months,datasets:dsU}, options:unitOpts });
+
+  // Daily mini trends
+  const lineOpts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false},ticks:{color:'#7a7880',font:{size:9},maxTicksLimit:7}},
+            y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:9},callback:v=>fmtShort(v)}}} };
+
+  const febLabels = RAW.shopee.feb.dates.map(d=>d.slice(8));
+  const marLabels = RAW.shopee.mar.dates.map(d=>d.slice(8));
+  const febDSs = [];
+  if(state.showShopee) febDSs.push({data:RAW.shopee.feb.rm,borderColor:'#e8643a',tension:0.35,pointRadius:0,borderWidth:1.5,fill:false});
+  if(state.showTiktok) febDSs.push({data:RAW.tiktok.feb.rm,borderColor:'#7b6ef6',tension:0.35,pointRadius:0,borderWidth:1.5,fill:false});
+  charts['mFebTrend'] = new Chart(document.getElementById('monthlyFebTrendChart'), { type:'line', data:{labels:febLabels,datasets:febDSs}, options:lineOpts });
+
+  const marDSs = [];
+  if(state.showShopee) marDSs.push({data:RAW.shopee.mar.rm,borderColor:'#e8643a',tension:0.35,pointRadius:0,borderWidth:1.5,fill:false});
+  if(state.showTiktok) marDSs.push({data:RAW.tiktok.mar.rm,borderColor:'#7b6ef6',tension:0.35,pointRadius:0,borderWidth:1.5,fill:false});
+  charts['mMarTrend'] = new Chart(document.getElementById('monthlyMarTrendChart'), { type:'line', data:{labels:marLabels,datasets:marDSs}, options:lineOpts });
+
+  // Comparison table
+  function chg(a,b) {
+    const p = ((b-a)/a*100);
+    const cls = p>=0?'up':'dn';
+    const arrow = p>=0?'▲':'▼';
+    return `<span class="kpi-change ${cls}" style="font-size:12px;">${arrow} ${Math.abs(p).toFixed(1)}%</span>`;
+  }
+  const rows = [
+    ['Shopee Sales (RM)', `RM ${MONTHS.feb.sRM.toLocaleString('ms-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}`, `RM ${MONTHS.mar.sRM.toLocaleString('ms-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}`, chg(MONTHS.feb.sRM,MONTHS.mar.sRM), 'Confirmed orders sahaja'],
+    ['TikTok GMV (RM)',   `RM ${MONTHS.feb.tRM.toLocaleString('ms-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}`, `RM ${MONTHS.mar.tRM.toLocaleString('ms-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}`, chg(MONTHS.feb.tRM,MONTHS.mar.tRM), 'Gross GMV termasuk refund'],
+    ['Gabungan GMV (RM)', `RM ${(MONTHS.feb.sRM+MONTHS.feb.tRM).toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}`, `RM ${(MONTHS.mar.sRM+MONTHS.mar.tRM).toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}`, chg(MONTHS.feb.sRM+MONTHS.feb.tRM,MONTHS.mar.sRM+MONTHS.mar.tRM), 'Jumlah kedua-dua platform'],
+    ['Shopee Units',      MONTHS.feb.sUnits.toLocaleString(), MONTHS.mar.sUnits.toLocaleString(), chg(MONTHS.feb.sUnits,MONTHS.mar.sUnits), ''],
+    ['TikTok Units',      MONTHS.feb.tUnits.toLocaleString(), MONTHS.mar.tUnits.toLocaleString(), chg(MONTHS.feb.tUnits,MONTHS.mar.tUnits), ''],
+    ['Shopee Buyers',     MONTHS.feb.sBuyers.toLocaleString(), MONTHS.mar.sBuyers.toLocaleString(), chg(MONTHS.feb.sBuyers,MONTHS.mar.sBuyers), ''],
+    ['TikTok Orders',     MONTHS.feb.tOrders.toLocaleString(), MONTHS.mar.tOrders.toLocaleString(), chg(MONTHS.feb.tOrders,MONTHS.mar.tOrders), ''],
+    ['Shopee Visitors',   MONTHS.feb.sVisitors.toLocaleString(), MONTHS.mar.sVisitors.toLocaleString(), chg(MONTHS.feb.sVisitors,MONTHS.mar.sVisitors), 'Traffic drop — isu utama'],
+    ['Shopee AOV (RM)',   `RM ${MONTHS.feb.sAOV.toFixed(2)}`, `RM ${MONTHS.mar.sAOV.toFixed(2)}`, chg(MONTHS.feb.sAOV,MONTHS.mar.sAOV), 'Avg order value naik'],
+    ['TikTok AOV (RM)',   `RM ${MONTHS.feb.tAOV.toFixed(2)}`, `RM ${MONTHS.mar.tAOV.toFixed(2)}`, chg(MONTHS.feb.tAOV,MONTHS.mar.tAOV), ''],
+    ['Shopee Conv. Rate', `${MONTHS.feb.sConv.toFixed(2)}%`, `${MONTHS.mar.sConv.toFixed(2)}%`, chg(MONTHS.feb.sConv,MONTHS.mar.sConv), 'Lebih baik walaupun traffic turun'],
+  ];
+  document.getElementById('monthlyTableBody').innerHTML = rows.map(([m,f,mc,chgHtml,note])=>`
+    <tr>
+      <td style="font-weight:500;">${m}</td>
+      <td class="rm-val shopee-val" style="color:var(--text);">${f}</td>
+      <td class="rm-val" style="color:var(--text);">${mc}</td>
+      <td>${chgHtml}</td>
+      <td style="font-size:11px;color:var(--muted);font-family:var(--mono);">${note}</td>
+    </tr>`).join('');
+}
+
+// ─── RENDER QUARTERLY ─────────────────────────────────────────
+function renderQuarterly() {
+  const sF=50958.05, sM=46292.19, tF=50820.01, tM=43383.84;
+  const sUF=1611, sUM=1486, tUF=1266, tUM=1105;
+  const sBF=1075, sBM=933, tOF=1173, tOM=988;
+  const qS=sF+sM, qT=tF+tM, qTotal=qS+qT;
+  const qU=sUF+sUM+tUF+tUM;
+
+  document.getElementById('qTotalGMV').textContent = fmtShort(qTotal);
+  document.getElementById('qShopeeGMV').textContent = fmtShort(qS);
+  document.getElementById('qTiktokGMV').textContent = fmtShort(qT);
+  document.getElementById('qUnits').textContent = qU.toLocaleString();
+  document.getElementById('qUnitsSub').textContent = `Shopee ${(sUF+sUM).toLocaleString()} + TikTok ${(tUF+tUM).toLocaleString()}`;
+
+  destroyChart('qMonthly'); destroyChart('qPie'); destroyChart('qFullTrend');
+
+  // Monthly grouped bar
+  const qBarOpts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false},ticks:{color:'#7a7880',font:{size:11}}},
+            y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:10},callback:v=>fmtShort(v)}}} };
+  const qDs = [];
+  if(state.showShopee) qDs.push({label:'Shopee',data:[sF,sM],backgroundColor:'rgba(232,100,58,0.75)',borderColor:'#e8643a',borderWidth:1.5,borderRadius:5});
+  if(state.showTiktok) qDs.push({label:'TikTok',data:[tF,tM],backgroundColor:'rgba(123,110,246,0.75)',borderColor:'#7b6ef6',borderWidth:1.5,borderRadius:5});
+  charts['qMonthly'] = new Chart(document.getElementById('qMonthlyChart'), { type:'bar', data:{labels:['Februari','Mac'],datasets:qDs}, options:qBarOpts });
+
+  // Pie
+  const pieLabels=[]; const pieData=[]; const pieColors=[];
+  if(state.showShopee){pieLabels.push('Shopee Feb');pieData.push(Math.round(sF));pieColors.push('#e8643a');}
+  if(state.showShopee){pieLabels.push('Shopee Mac');pieData.push(Math.round(sM));pieColors.push('#f0936a');}
+  if(state.showTiktok){pieLabels.push('TikTok Feb');pieData.push(Math.round(tF));pieColors.push('#7b6ef6');}
+  if(state.showTiktok){pieLabels.push('TikTok Mac');pieData.push(Math.round(tM));pieColors.push('#a59ef8');}
+  charts['qPie'] = new Chart(document.getElementById('qPieChart'), {
+    type:'doughnut', data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'right',labels:{color:'#7a7880',font:{size:10},boxWidth:10,padding:10}},
+               tooltip:{callbacks:{label:ctx=>`RM ${ctx.parsed.toLocaleString()} (${(ctx.parsed/qTotal*100).toFixed(1)}%)`}}}}
+  });
+
+  // Full Q1 daily trend
+  const allDates = [...RAW.shopee.feb.dates,...RAW.shopee.mar.dates];
+  const sAllRM  = [...RAW.shopee.feb.rm,...RAW.shopee.mar.rm];
+  const tAllRM  = [...RAW.tiktok.feb.rm,...RAW.tiktok.mar.rm];
+  const cAllRM  = sAllRM.map((v,i)=>v+tAllRM[i]);
+  const shortLbl = allDates.map(d=>d.slice(5).replace('-','/'));
+  const qDs2 = [];
+  if(state.showShopee) qDs2.push({label:'Shopee',data:sAllRM,borderColor:'#e8643a',tension:0.3,pointRadius:0,borderWidth:1.5,fill:false});
+  if(state.showTiktok) qDs2.push({label:'TikTok',data:tAllRM,borderColor:'#7b6ef6',tension:0.3,pointRadius:0,borderWidth:1.5,fill:false});
+  qDs2.push({label:'Gabungan',data:cAllRM,borderColor:'#34c98a',tension:0.3,pointRadius:0,borderWidth:1,fill:false,borderDash:[4,3]});
+  const fullOpts = { responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#18181c',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#f0ede8',bodyColor:'#7a7880',titleFont:{family:'DM Mono',size:10},bodyFont:{family:'DM Mono',size:10}}},
+    scales:{x:{grid:{display:false},ticks:{color:'#7a7880',font:{size:9},maxTicksLimit:15}},
+            y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7880',font:{size:9},callback:v=>fmtShort(v)}}} };
+  charts['qFullTrend'] = new Chart(document.getElementById('qFullTrendChart'), { type:'line', data:{labels:shortLbl,datasets:qDs2}, options:fullOpts });
+
+  // Scorecard table
+  const scorecardRows = [
+    ['GMV / Sales (RM)', `RM ${sF.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}`, `RM ${sM.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}`, `RM ${tF.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}`, `RM ${tM.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}`, `<span class="combined-val">RM ${qTotal.toLocaleString('ms-MY',{minimumFractionDigits:0,maximumFractionDigits:0})}</span>`],
+    ['Units Terjual', sUF.toLocaleString(), sUM.toLocaleString(), tUF.toLocaleString(), tUM.toLocaleString(), `<span class="combined-val">${qU.toLocaleString()}</span>`],
+    ['Buyers / Orders', sBF.toLocaleString(), sBM.toLocaleString(), tOF.toLocaleString(), tOM.toLocaleString(), `<span class="combined-val">${(sBF+sBM+tOF+tOM).toLocaleString()}</span>`],
+    ['AOV (RM)', 'RM 47.40', 'RM 49.62', 'RM 43.32', 'RM 43.91', `<span class="combined-val">RM ${((sF/sBF+sM/sBM+tF/tOF+tM/tOM)/4).toFixed(2)}</span>`],
+    ['Platform GMV Share', `${(sF/(sF+tF)*100).toFixed(1)}%`, `${(sM/(sM+tM)*100).toFixed(1)}%`, `${(tF/(sF+tF)*100).toFixed(1)}%`, `${(tM/(sM+tM)*100).toFixed(1)}%`, '50/50 → 52/48'],
+  ];
+  document.getElementById('quarterlyTableBody').innerHTML = scorecardRows.map(([m,...vals])=>`
+    <tr>
+      <td style="font-weight:500;">${m}</td>
+      ${vals.map((v,i)=>`<td class="${i<2?'shopee-val':i<4?'tiktok-val':''}" style="font-family:var(--mono);font-size:12px;color:var(--text);">${v}</td>`).join('')}
+    </tr>`).join('');
+}
+
+
+function renderAll() {
+  Chart.defaults.color = '#7a7880';
+  renderKPI();
+  if(state.view==='overview')   renderOverview();
+  else if(state.view==='monthly')    renderMonthly();
+  else if(state.view==='quarterly')  renderQuarterly();
+  else if(state.view==='weekly')     renderWeekly();
+  else if(state.view==='daily')      renderDaily();
+  else if(state.view==='products')   renderProducts();
+}
+
+// ─── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => { renderAll(); });
+</script>
+</body>
+</html>
